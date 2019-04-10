@@ -1,7 +1,9 @@
 #include <cstdio>
 #include <unistd.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <arpa/inet.h>
 
 
@@ -40,6 +42,36 @@ int main() {
         return 3;
     }
     printf("Service is ready on socket %i at port %i.\n", server_socket, default_port_);
+
+    fd_set server_socket_set;
+    struct timeval time_slice{ };
+
+    int select_status = 0;
+    while (true) {
+
+        time_slice.tv_sec = 6;
+        time_slice.tv_usec = 0;
+
+        FD_ZERO(&server_socket_set);
+        FD_SET(server_socket, &server_socket_set);
+
+        select_status =
+                select(server_socket + 1, &server_socket_set, nullptr, nullptr, &time_slice);
+
+        if (select_status == -1) {
+            perror("[-] select failure");
+            return 12;
+        }
+        if (select_status == 0) {
+            printf("No clients within 6 secs.\n");
+        } else {
+            if (FD_ISSET(server_socket, &server_socket_set)) {
+                printf("NOTE: Fd Isset true.\n");
+            }
+            break;
+        }
+    }
+
     int client_socket = accept(server_socket, nullptr, nullptr);
     if (client_socket == -1) {
         perror("[-] unable to accept incoming connection");
